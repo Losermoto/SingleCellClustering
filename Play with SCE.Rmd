@@ -1,0 +1,204 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+These are some background knowledge about SingleCellExperiment object.
+
+#Play with sce data type
+
+ref: https://www.jianshu.com/p/aa0a4306b067
+
+![](D:\\New Term\\scRNA_clustering\\background_info\\what is sce data.png)
+
+sce has 4 parts:
+
+1. blue part: assays, the primary data, each column is a cell, each row is a gene.
+
+2. green part: rowData, gene features. Each column is a gene feature, each row is a gene.
+
+3. orange part: colData, cell data, each column is a cell feature, each row is a cell.
+
+4. Purple part: reducedDims, some downstream Dimension reductions analysis  such as PCA and tSNE, each column is a PCA, each row is a cell.
+
+## assays: How to construct a sce?
+
+Assays is the necessary part of a sce. 
+
+To construct a assays, we need a matrix of gene * cell (row is gene, col is cell)
+
+```{r}
+counts_matrix <- data.frame(cell_1 = rpois(10, 10), 
+                    cell_2 = rpois(10, 10), 
+                    cell_3 = rpois(10, 30))
+rownames(counts_matrix) <- paste0("gene_", 1:10)
+
+counts_matrix <- as.matrix(counts_matrix) 
+```
+
+After we have the matrix, we can now use a list to construct a sce.
+
+```{r}
+toy_sce <- SingleCellExperiment(assays = list(counts = counts_matrix))
+```
+
+```{r}
+toy_sce
+```
+
+To access the matrix from sce, there are two methods:
+
+1. assay(sce, "counts")
+
+2. counts(sce)
+
+```{r}
+assay(toy_sce, "counts")[1:3,]
+```
+
+```{r}
+counts(toy_sce)[1:3,]
+```
+
+
+### How to add attributes to assay?
+
+Assay is the core, we can add many attributes, such as logcount
+
+```{r}
+#Scaling normalization of single-cell RNA-seq data by deconvolving size factors from cell pools.
+toy_sce_2 <- scran::computeSumFactors(toy_sce)
+
+# Compute log-transformed normalized expression values from a count matrix in a SingleCellExperiment object.
+toy_sce_2 <- scater::logNormCounts(toy_sce_2)
+
+```
+
+Same as counts, logcounts can be accessed with two methods:
+
+```{r}
+assay(toy_sce_2, "logcounts")[1:3,]
+logcounts(toy_sce_2)[1:3,]
+```
+
+
+So far, in the list of assay of sce, there are two items
+
+```{r}
+assays(toy_sce_2)
+```
+
+### How to add self-defined attributes to assay?
+
+Now define a new variable
+```{r}
+counts_100 <- assay(toy_sce, "counts") + 100
+assay(toy_sce_2, "counts_100") <- counts_100 
+```
+
+```{r}
+assay(toy_sce_2, "counts_100")[1:3,]
+```
+
+```{r}
+assays(toy_sce_2)
+```
+
+Note, __assay__ is both setter and getter function.
+
+__assays__ is for getting the summary
+
+## colData, cell info
+
+
+colData contains data about the cell, such as label, author, etcs.
+
+Now we construct a colData
+
+```{r}
+cell_metadata <- data.frame(batch = c(1,4,8))
+rownames(cell_metadata) <- paste0("cell_", 1:3)
+```
+
+There are two methods to add colData:
+
+1. Directly construct in SingleCellExperiment function
+```{r}
+toy_sce_3 <- SingleCellExperiment(assays = list(counts = counts_matrix), colData = cell_metadata)
+```
+2. Add attributes to pre-existing sce.
+
+```{r}
+colData(toy_sce_3) <- DataFrame(cell_metadata)
+```
+
+```{r}
+toy_sce_3
+```
+
+Just like assay, colData is also setter and getter function.
+
+```{r}
+colData(toy_sce_3)
+```
+
+Or use dollar sign and colData name to access the colData
+
+```{r}
+toy_sce_3$batch
+```
+
+To access specific data:
+
+```{r}
+colData(toy_sce_3[,toy_sce_3$batch == 1])
+```
+
+## rowData/rowRanges, gene info
+
+rowData: it is a dataframe, containing infomation about genes in assay, such as QCs.
+
+```{r}
+toy_sce_4 <- scater::addPerFeatureQC(toy_sce)
+rowData(toy_sce_4)[1:3,]
+```
+
+rowRanges: it is GRange object, containing gene location, chromosomes info. 
+
+It is empty in our toy dataset.
+
+```{r}
+rowRanges(toy_sce_4[c("gene_1","gene_2")])
+```
+
+
+## reducedDims, dimension reductions
+
+This part can be drawn from PCA, tSNE, UMAP. It is a list of matrices. Each row is a cell, each column is a reducedDim info.
+
+```{r}
+toy_sce_5 <- scater::logNormCounts(toy_sce)
+toy_sce_5 <- scater::runPCA(toy_sce_5)
+reducedDim(toy_sce_5, "PCA")
+
+
+```
+
+Run tSNE:
+
+```{r}
+toy_sce_5 <- scater::runTSNE(toy_sce_5, perplexity = .1)
+reducedDim(toy_sce_5, "TSNE")
+```
+
+Now check what we got in reducedDim:
+
+```{r}
+reducedDims(toy_sce_5)
+```
+
+
+
+
+
+
+
