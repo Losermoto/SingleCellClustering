@@ -29,5 +29,7 @@ ref: https://bioconductor.org/packages/release/bioc/html/SingleCellExperiment.ht
 # BiocManager::install("scater")
 # BiocManager::install("scran")
 # BiocManager::install("Rtsne")
+# BiocManager::install("Seurat")
+# install.packages("mclust")
 ```
 
