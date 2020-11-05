@@ -6,7 +6,6 @@ output: html_notebook
 ## load the package 
 
 ```{r}
-suppressPackageStartupMessages({
   library(scater)
   library(SC3)
   library(Seurat)
@@ -15,7 +14,8 @@ suppressPackageStartupMessages({
   library(DuoClustering2018)
   library(ggplot2)
   library(mclust)
-})
+  library(ClusterR)
+  library(cowplot)
 ```
 
 ref: https://satijalab.org/seurat/v3.2/pbmc3k_tutorial.html
@@ -24,6 +24,8 @@ Seurat use a different object called seurat object.
 
 
 ```{r}
+sce_zheng <- sce_full_Zhengmix8eq()
+
 seurat_obj <- CreateSeuratObject(counts = counts(sce_zheng))
 ```
 #Standard pre-processing workflow
@@ -40,7 +42,7 @@ Visualize QC metrics as a violin plot
 
 ```{r}
 #VlnPlot(seurat_obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
-VlnPlot(seurat_obj, features = c("nFeature_RNA", "nCount_RNA" ), ncol = 2)
+# VlnPlot(seurat_obj, features = c("nFeature_RNA", "nCount_RNA" ), ncol = 2)
 ```
 
 FeatureScatter is typically used to visualize feature-feature relationships, but can be used for anything calculated by the object, i.e. columns in object metadata, PC scores etc.
@@ -48,8 +50,8 @@ FeatureScatter is typically used to visualize feature-feature relationships, but
 ```{r}
 
 # plot1 <- FeatureScatter(seurat_obj, feature1 = "nCount_RNA", feature2 = "percent.mt")
-plot2 <- FeatureScatter(seurat_obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-plot2
+# plot2 <- FeatureScatter(seurat_obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+# plot2
 ```
 
 In the example below, we visualize QC metrics, and use these to filter cells.
@@ -60,7 +62,6 @@ We filter cells that have >5% mitochondrial counts (This part is not completed b
 
 ```{r}
 seurat_obj_filter <- subset(seurat_obj, subset = nFeature_RNA > 200 & nFeature_RNA < 2500)
-
 ```
 
 ### Normalization:
@@ -69,7 +70,6 @@ By default, we employ a global-scaling normalization method "LogNormalize" that 
 
 ```{r}
 seurat_obj_lognorm <- NormalizeData(seurat_obj_filter)
-
 ```
 
 ### Identification of highly variable features (feature selection)
@@ -81,7 +81,6 @@ By default, we return 2,000 features per dataset. These will be used in downstre
 ```{r}
 # Use all default paraameters
 seurat_obj_featuresel <- FindVariableFeatures(seurat_obj_lognorm)
-
 ```
 
 
@@ -89,11 +88,11 @@ Identify the 10 most highly variable genes
 
 plot variable features with and without labels
 ```{r}
-top10 <- head(VariableFeatures(seurat_obj_featuresel), 10)
-
-plot1 <- VariableFeaturePlot(seurat_obj_featuresel)
-plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
-plot1 + plot2
+# top10 <- head(VariableFeatures(seurat_obj_featuresel), 10)
+# 
+# plot1 <- VariableFeaturePlot(seurat_obj_featuresel)
+# plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+# plot1 + plot2
 ```
 
 ## Scaling the data
@@ -124,26 +123,22 @@ seurat_obj_pca <- RunPCA(seurat_obj_scale, features = VariableFeatures(object = 
 
 
 ```{r}
-print(seurat_obj_pca[["pca"]], dims = 1:5, nfeatures = 4)
-
+# print(seurat_obj_pca[["pca"]], dims = 1:5, nfeatures = 4)
 ```
 
 ```{r}
-VizDimLoadings(seurat_obj_pca, dims = 1:2, reduction = "pca")
-
+# VizDimLoadings(seurat_obj_pca, dims = 1:2, reduction = "pca")
 ```
 
 
 ```{r}
-DimPlot(seurat_obj_pca, reduction = "pca")
-
+# DimPlot(seurat_obj_pca, reduction = "pca")
 ```
 
 In particular DimHeatmap allows for easy exploration of the primary sources of heterogeneity in a dataset, and can be useful when trying to decide which PCs to include for further downstream analyses. Both cells and features are ordered according to their PCA scores. Setting cells to a number plots the 'extreme' cells on both ends of the spectrum, which dramatically speeds plotting for large datasets. Though clearly a supervised analysis, we find this to be a valuable tool for exploring correlated feature sets.
 
 ```{r}
-DimHeatmap(seurat_obj_pca, dims = 1:3, cells = 500, balanced = TRUE)
-
+# DimHeatmap(seurat_obj_pca, dims = 1:10, cells = 500, balanced = TRUE)
 ```
 
 ## Determine the 'dimensionality' of the dataset
@@ -151,7 +146,7 @@ DimHeatmap(seurat_obj_pca, dims = 1:3, cells = 500, balanced = TRUE)
 To overcome the extensive technical noise in any single feature for scRNA-seq data, Seurat clusters cells based on their PCA scores, with each PC essentially representing a 'metafeature' that combines information across a correlated feature set. The top principal components therefore represent a robust compression of the dataset. 
 
 In Macosko et al, we implemented a resampling test inspired by the JackStraw procedure. We randomly permute a subset of the data (1% by default) and rerun PCA, constructing a 'null distribution' of feature scores, and repeat this procedure. We identify 'significant' PCs as those who have a strong enrichment of low p-value features.
-
+# use default method
 ```{r}
 # NOTE: This process can take a long time for big datasets
 seurat_obj_jackstraw <- JackStraw(seurat_obj_pca, num.replicate = 100)
@@ -161,7 +156,7 @@ seurat_obj_score <- ScoreJackStraw(seurat_obj_jackstraw, dims = 1:20)
 The JackStrawPlot function provides a visualization tool for comparing the distribution of p-values for each PC with a uniform distribution (dashed line). 'Significant' PCs will show a strong enrichment of features with low p-values (solid curve above the dashed line). 
 
 ```{r}
-JackStrawPlot(seurat_obj_score, dims = 1:20)
+# JackStrawPlot(seurat_obj_score, dims = 1:20)
 
 ```
 
@@ -169,7 +164,7 @@ An alternative heuristic method generates an 'Elbow plot': a ranking of principl
 
 In this example, we can observe an 'elbow' around PC10-11, suggesting that the majority of true signal is captured in the first 11 PCs.
 ```{r}
-ElbowPlot(seurat_obj_score)
+# ElbowPlot(seurat_obj_score)
 ```
 
 
@@ -196,28 +191,96 @@ To cluster the cells, we next apply modularity optimization techniques such as t
 seurat_obj_neighb <- FindNeighbors(seurat_obj_score)
 ```
 
-
+# resolution = 0.5 by default (0.4-1.2)
 ```{r}
-seurat_obj_cluster <- FindClusters(seurat_obj_neighb)
+seurat_obj_cluster <- FindClusters(seurat_obj_neighb, save.snn = T)
 ```
 
 Look at cluster IDs of the first 5 cells
 
 ```{r}
-head(Idents(seurat_obj_cluster), 20)
+dim( data.frame(Idents(seurat_obj_cluster)))
 ```
 
 ```{r}
-DimPlot(seurat_obj_cluster, label = TRUE, pt.size = 0.5) + NoLegend()
+# DimPlot(seurat_obj_cluster, label = TRUE, pt.size = 0.5) + NoLegend()
 ```
 
 calculate ARI from package mclust.
+# output and save as R object
+# saveRDS & readRDS. save a list for the parameters
+```{r}
+seurat_out <- data.frame(Idents(seurat_obj_cluster))
+seurat_out$labels = gsub("^\\d+|\\d+$", "", row.names(seurat_out))
+```
+Save the seurat objects
+```{r}
+saveRDS(seurat_obj_cluster, "D:\\New Term\\scRNA_clustering\\RNAClustering\\seurat_obj_cluster")
+```
+
+# use this package: https://cran.r-project.org/web/packages/ClusterR/ClusterR.pdf
+```{r}
+adjustedRandIndex(seurat_out$Idents.seurat_obj_cluster., seurat_out$labels)
+seurat_out$labels <- unclass(as.factor(seurat_out$labels))
+external_validation(seurat_out$labels, as.integer(seurat_out$Idents.seurat_obj_cluster.))
+```
+
+Here clusters number is 9. But the true labels number is 8.
+
+# custom distance
+# https://rdrr.io/cran/Seurat/man/CustomDistance.html
+
+# d <- dist(t(GetAssayData(pbmc, slot = "scale.data")))
+
+
+# use distance before PCA and after scaling, normalization.
+# distance is pre defined before the clustering.
+# But the clustering is variable. So the internal metrics are variable. 
+# Only need to calculate distance once.
+
+# Function (parameters, method_name)
+# for each paramter, obtain inferred cluster labels, internal evaluation metric, and ARI
+
+
+write a function to get the ARI according to different resolution value. 
+
+
+
+```{r}
+scale.data <- GetAssayData(seurat_obj_cluster, slot = "scale.data")
+# write.csv(input.data, "D:\\New Term\\scRNA_clustering\\RNAClustering\\distance_scaling.csv")
+```
+
+```{r}
+euclidean.distance <- function(x, y) 
+  return (sqrt(sum((x-y)^2)))
+cell.euclidean.distance <- CustomDistance(scale.data, euclidean.distance)
+```
+
+```{r}
+scale.data.distance <- distance_matrix(scale.data)
+saveRDS(scale.data.distance, "D:\\New Term\\scRNA_clustering\\RNAClustering\\scale.data.distance_1")
+saveRDS(cell.euclidean.distance, "D:\\New Term\\scRNA_clustering\\RNAClustering\\cell.euclidean.distance_1")
+```
+retrive the objects from local saved objects.
+```{r}
+scale.data.distance <- readRDS("D:\\New Term\\scRNA_clustering\\RNAClustering\\scale.data.distance_1")
+cell.euclidean.distance <- readRDS("D:\\New Term\\scRNA_clustering\\RNAClustering\\cell.euclidean.distance_1")
+seurat_obj_cluster <- readRDS("D:\\New Term\\scRNA_clustering\\RNAClustering\\seurat_obj_cluster")
+
+```
 
 ```{r}
 seurat_out <- data.frame(Idents(seurat_obj_cluster))
 seurat_out$labels = gsub("^\\d+|\\d+$", "", row.names(seurat_out))
-adjustedRandIndex(seurat_out$Idents.seurat_obj_cluster., seurat_out$labels)
 ```
 
+```{r}
+scale.data.distance_df <- as.data.frame.matrix(scale.data.distance) 
+head(scale.data.distance_df, 20)
+```
 
+```{r}
+
+```
 
